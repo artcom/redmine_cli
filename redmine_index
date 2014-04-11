@@ -1,0 +1,9 @@
+#!/bin/bash
+if [ -f ".redmine" ]; then
+  source .redmine
+fi
+redmine_get index |\
+xmllint --format - |\
+grep "^ *<title>" |\
+sed -e 's/<title>//g' -e 's/<\/title>//g' -e 's/^ *//g'
+

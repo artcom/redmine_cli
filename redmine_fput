@@ -1,0 +1,9 @@
+#!/bin/bash
+
+if [ -f ".redmine" ]; then
+  source .redmine
+fi
+
+redmine_put $1
+redmine_fget $1
+

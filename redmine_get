@@ -1,0 +1,13 @@
+#!/bin/bash
+
+if [ -f ".redmine" ]; then
+  source .redmine
+fi
+
+if [ "$#" -gt 0 ]; then
+  PAGE_NAME=$1
+
+  curl -s -3 \
+  "https://$SERVER/projects/$PROJECT/wiki/$PAGE_NAME.xml?key=$KEY" 
+fi
+

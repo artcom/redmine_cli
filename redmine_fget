@@ -1,0 +1,36 @@
+#!/bin/bash
+REMOVE_VERSION=0
+USAGE="Usage: $0 [-r|-k] [-h]\n\
+  Options:\n\
+  -r  : remove version xml tags\n\
+  -k  : keep version xml tags\n\
+  "
+while getopts "rh" OPTIONS; do
+  case $OPTIONS in
+    r ) REMOVE_VERSION=1
+        shift
+        ;;
+    k ) REMOVE_VERSION=0
+        shift
+        ;;
+    h ) echo -e $USAGE
+        exit 0
+        ;;
+   \? ) echo -e $USAGE
+        exit 1
+        ;;
+  esac
+done
+
+if [ -f ".redmine" ]; then
+  source .redmine
+fi
+
+if [ "$#" -gt 0 ]; then
+  redmine_get $1 > $1
+  if [ $REMOVE_VERSION == 1 ]; then
+    sed -i '' -e 's/<version>.*<\/wiki_page>/<\/wiki_page>/g' $1
+    cat $1 | tr -d '\015' | tee $1 > /dev/null
+  fi
+fi
+
