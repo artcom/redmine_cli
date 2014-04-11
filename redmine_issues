@@ -1,0 +1,433 @@
+#!/bin/bash
+
+if [ -f ".redmine" ]; then
+  source .redmine
+elif [ -f "~/.redmine" ]; then
+  source ~/.redmine
+fi
+
+PARSED_OPTIONS=""
+while getopts "des:" options; do
+  PARSED_OPTIONS="${PARSED_OPTIONS} -${options}${OPTARG}"
+  case $options in
+    d )
+        SHOW_DONE=1
+        ;;
+    s )
+        SPACES=$OPTARG
+        ;;
+    e )
+        EXTENDED=1
+        ;;
+   \? ) 
+        exit 1
+        ;;
+  esac
+done
+shift $(( OPTIND - 1 ));
+
+if [ "$#" -ge 1 ]; then
+  : ${ISSUE_LIMIT:="400"}
+  : ${USER_ID:="me"}
+
+  if [ $1 = "sprints" ]
+  then
+    curl -s -3 "https://$SERVER/projects/$PROJECT_ID/versions.json?key=$KEY" |\
+    jq -c '.versions[] | {id: .id, name: .name, status: .status}'
+
+  elif [ $1 = "current_user_id" ] ##
+  then
+    curl -s -3 "https://$SERVER/users/current.json?key=$KEY"  | jq '.user.id'
+
+  elif [ $1 = "current_sprint_id" ] ##
+  then
+    curl -s -3 "https://$SERVER/projects/$PROJECT_ID/versions.json?key=$KEY" |\
+    jq '(.versions[] | select( .status == "open") | .id)'
+
+  elif [ $1 = "project_members" ]
+  then
+    curl -s -3 "https://$SERVER/projects/$PROJECT_ID/memberships.json?key=$KEY" |\
+    jq -r '(.memberships[] | .user | "\(.name) : \(.id)")' |\
+    GREP_COLOR='0;33' egrep --color='always' '[0-9]+$|$'
+
+  elif [ $1 = "issue_statuses" ] 
+  then
+    curl -s -3 "https://$SERVER/issue_statuses.json?key=$KEY" | jq '.'
+
+  elif [ $1 = "details" ] && [ "$#" -ge 2 ] ##
+  then
+    curl -s -3 "https://$SERVER/issues/$2.json?key=$KEY&include=journals,children"
+    echo
+
+  elif [ $1 = "ids" ] ##
+  then
+    jq -c '[.[] | .id]' |\
+    jq -c '.[]'
+
+  elif [ $1 = "issue_format" ] ##
+  then
+    jq "[if type == \"array\" then .[] else . end | {\
+      id: .id, \
+      subject: .subject,\
+      description: .description,\
+      story_points: .story_points,\
+      status_name: .status.name, \
+      status_id: .status.id, \
+      tracker_id: .tracker.id, \
+      tracker_name: .tracker.name, \
+      fixed_version_id: .fixed_version.id, \
+      fixed_version_name: .fixed_version.name, \
+      assigned_to_name: .assigned_to.name, \
+      assigned_to_id: .assigned_to.id, \
+      parent_id: .parent.id, \
+      estimated_hours: .estimated_hours, \
+      spent_hours: .spent_hours, \
+      remaining_hours: ( if has(\"journals\") then \
+        ([.journals[] | select( has(\"details\") and ( .details[] | select(.name == \"remaining_hours\") )) | .details[] | select( .name==\"remaining_hours\")] | .[length-1] | if has(\"new_value\") then .new_value | tonumber else null end) \
+        else null end ),\
+      notes: ( if has(\"journals\") then \
+        ([.journals[] | select( has(\"notes\") and .notes !=\"\" ) | {notes: .notes, user_id: .user.id, user_name: .user.name , created_on: .created_on}]) \
+        else [] end ),\
+      children: (if has(\"children\") then [.children[] | { id: .id, subject: .subject}] else [] end)\
+    }]"
+
+  elif [ $1 = "issue" ] && [ "$#" -ge 2 ]
+  then
+    $0 details $2 | jq '.issue' |\
+    $0 issue_format
+
+  elif [ $1 = "story_colorize" ] ##
+  then
+    GREP_COLOR='1;30' egrep --color='always' "(^    .*\] Done \[.*)|$" |\
+    GREP_COLOR='1;30' egrep --color='always' "(^    .*\] Rejected \[.*)|$" |\
+    GREP_COLOR='1;32' egrep --color='always' "(^    .*\] In work \[.*)|$" |\
+    GREP_COLOR='1;36' egrep --color='always' "(^    .*\] New \[.*)|$" |\
+    GREP_COLOR='1;36' egrep --color='always' "(^    .*\] Assigned \[.*)|$" |\
+    GREP_COLOR='1;31' egrep --color='always' "(^    .*\] Info needed \[.*)|$" |\
+    GREP_COLOR='0;35' egrep --color='always' "(^[0-9]{4}:.*)|$" |\
+    cat
+
+  elif [ $1 = "task_colorize" ] ##
+  then
+    GREP_COLOR='1;30' egrep --color='always' "(^.*\] Done \[.*)|$" |\
+    GREP_COLOR='1;30' egrep --color='always' "(^.*\] Rejected \[.*)|$" |\
+    GREP_COLOR='1;32' egrep --color='always' "(^.*\] In work \[.*)|$" |\
+    GREP_COLOR='1;34' egrep --color='always' "(^.*\] New \[.*)|$" |\
+    GREP_COLOR='1;34' egrep --color='always' "(^.*\] Assigned \[.*)|$" |\
+    GREP_COLOR='1;31' egrep --color='always' "(^.*\] Info needed \[.*)|$" |\
+    cat
+
+  elif [ $1 = "feature_line" ] ##
+  then
+    jq -r "(if type == \"array\" then .[] else . end | \
+\"\(.id): [\(.story_points//\"!\")-\(.estimated_hours//\"!\")] \(.fixed_version_name//\"\"): '\(.subject)'\"\
+    )"
+
+  elif [ $1 = "task_line" ] ##
+  then
+    : ${SPACES:=''}
+    if [ "${EXTENDED}" == "1" ]; then
+      # TODO: when the description contains new lines ('\r\n')
+      #       the result is strange
+      jq -r -c "(if type == \"array\" then .[] else . end |\
+\"${SPACES}\(.id): [\(.spent_hours//\"!\")-\(.remaining_hours//\"!\")-\(.estimated_hours//\"!\")] \(.status_name) [\(.assigned_to_name)] : \(.subject) - \(.parent_id//\"\")\
+\(if (.description != null) and (.description != \"\") then (\"\n${SPACES}    \(.description)\") else \"\" end)\
+\(if (.notes | length) > 0 then (\"\n${SPACES}    \(([.notes[] | .notes]))\")else \"\" end)\
+\"\
+      )"
+#\"${SPACES}\(.id): [\(.spent_hours//\"!\")-\(.remaining_hours//\"!\")-\(.estimated_hours//\"!\")] \(.status_name) [\(.assigned_to_name)] : \(.subject) - \(.parent_id) \(. fixed_version_name//\"\")\"\
+    else
+      jq -r "(if type == \"array\" then .[] else . end |\
+\"${SPACES}\(.id): [\(.spent_hours//\"!\")-\(.remaining_hours//\"!\")-\(.estimated_hours//\"!\")] \(.status_name) [\(.assigned_to_name)] : '\(.subject)'\"\
+      )"
+    fi
+
+  elif [ $1 = "current_stories" ] ##
+  then
+    SPRINT_ID=$($0 current_sprint_id)
+    curl -s -3 "https://$SERVER/issues.json?key=$KEY&limit=$ISSUE_LIMIT&project_id=$PROJECT_ID&tracker_id=2&fixed_version_id=$SPRINT_ID" |\
+    jq '.issues' |\
+    $0 issue_format
+
+  elif [ $1 = "backlog_stories" ] ##
+  then
+    SPRINT_ID=$($0 current_sprint_id)
+    curl -s -3 "https://$SERVER/issues.json?key=$KEY&limit=$ISSUE_LIMIT&project_id=$PROJECT_ID&tracker_id=2&status_id=open&fixed_version_id=!$SPRINT_ID" |\
+    jq '.issues' |\
+    $0 issue_format
+
+  elif [ $1 = "backlog_tasks" ] ##
+  then
+    SPRINT_ID=$($0 current_sprint_id)
+    #curl -s -3 "https://$SERVER/issues.json?key=$KEY&limit=$ISSUE_LIMIT&project_id=$PROJECT_ID&tracker_id=4&status_id=open&fixed_version_id=!${SPRINT_ID}" |\
+    curl -s -3 "https://$SERVER/issues.json?key=$KEY&limit=$ISSUE_LIMIT&project_id=$PROJECT_ID&tracker_id=4&status_id=open&fixed_version_id=!*" |\
+    jq -c '[.issues[] | select( has("parent") | not) | .]' |\
+    #jq '.issues' |\
+    $0 issue_format
+
+  elif [ $1 = "user_tasks" ]
+  then
+    SPRINT_ID=$($0 current_sprint_id)
+    if [ "$#" -ge 2 ]; then
+      USER_ID=$2
+    else
+      USER_ID=$( $0 current_user_id )
+    fi
+    USER_DETAILS=$(curl -s -3 "https://$SERVER/users/${USER_ID}.json?key=$KEY" | jq -r '. | "\(.user.firstname) \(.user.lastname)"')
+
+    #echo "${USER_DETAILS}"
+
+    curl -s -3 "https://$SERVER/issues.json?key=$KEY&limit=$ISSUE_LIMIT&project_id=$PROJECT_ID&tracker_id=4&status_id=open&assigned_to_id=$USER_ID" |\
+    jq '.issues' |\
+    $0 issue_format |\
+    jq '. | sort_by(.status_id) | reverse' |\
+    $0 ${PARSED_OPTIONS} task_line | $0 task_colorize
+
+  elif [ $1 = "children" ] ##
+  then
+    IDS=$(cat)
+    IDS_ARRAY=( $IDS )
+    ARRAY_LENGTH=${#IDS_ARRAY[@]}
+    for (( I=0; I<=$(( ${ARRAY_LENGTH} -1 )); I++ ))
+    do
+       ID=${IDS_ARRAY[$I]}
+       #echo ".....: ${ID}"
+       $0 ${PARSED_OPTIONS} story ${ID}
+       echo
+    done
+
+  elif [ $1 = "current" ]
+  then
+    $0 current_stories |\
+    jq '. | sort_by(.subject) ' |\
+    $0 ids | $0 ${PARSED_OPTIONS} children
+
+  elif [ $1 = "backlog" ]
+  then
+    $0 backlog_stories |\
+    jq '. | sort_by(.subject) ' |\
+    $0 ids | $0 ${PARSED_OPTIONS} children
+
+  elif [ $1 = "tasks" ]
+  then
+    $0 backlog_tasks | $0 ${PARSED_OPTIONS} task_line | $0 task_colorize
+
+  elif [ $1 = "all" ]
+  then
+    $0 current
+    echo "================================================================================="
+    $0 backlog
+    echo "================================================================================="
+    $0 tasks
+
+  elif [ $1 = "story" ] && [ "$#" -ge 2 ] ##
+  then
+    FEATURE=$($0 issue $2)
+    SUB_TASKS=$(echo "${FEATURE}" | jq '.[] | .children[] | .id')
+
+    SUB_TASKS_ARRAY=( $SUB_TASKS )
+    ARRAY_LENGTH=${#SUB_TASKS_ARRAY[@]}
+    JSON_TASKS='['
+    for (( I=0; I<=$(( ${ARRAY_LENGTH} -1 )); I++ ))
+    do
+       TASK_ID=${SUB_TASKS_ARRAY[$I]}
+       #echo "TASK_ID:${TASK_ID}"
+       JSON_TASKS="${JSON_TASKS} $($0 issue ${TASK_ID} | jq '.[]')"
+       if [ ${I} -lt $(( ${ARRAY_LENGTH} -1 )) ]; then
+        JSON_TASKS="${JSON_TASKS},"
+       fi
+    done
+    JSON_TASKS="${JSON_TASKS}]"
+
+    # TODO: in the ugly case create a valid json object
+    tput smul
+    tput setaf 5
+    echo -n "${FEATURE}" | $0 feature_line | tr -d '\r\n'
+    tput rmul
+    tput sgr0
+    echo
+
+    echo "${JSON_TASKS}" |\
+    jq '. | sort_by(.status_id) | reverse' |\
+    if [ "${SHOW_DONE}" = 1 ]; then cat; else jq '[ .[] | select(.status_id != 5 and .status_id != 6) ]'; fi |\
+    $0 -s '    ' ${PARSED_OPTIONS} task_line | $0 story_colorize
+
+#echo '[{"a":1},{"a":2},{"a":3}]' | if [ $AA = 1 ];then jq -c '[.[]| select(.a != 1)]'; else cat ;fi | sed 's/a/A/g'
+#if [ "${SHOW_DONE}" = 1 ]; then jq '[ .[] | select(.status_id != 5 and .status_id != 6) ]'; else cat; fi |\
+
+  elif [ $1 = "put" ] && [ "$#" -ge 2 ] ##
+  then
+    sed -e "s/^/{'issue':{/g" -e "s/$/}}/g" -e "s/'/\"/g" |\
+    curl -X PUT -H "Content-type:application/json" -s -3 -d @- "https://$SERVER/issues/$2.json?key=$KEY"
+
+  elif [ $1 = "reject" ] && [ "$#" -ge 2 ]
+  then
+    echo "'status_id':6" | $0 put $2
+
+  elif [ $1 = "done" ] && [ "$#" -ge 2 ]
+  then
+    echo "'status_id':5" | $0 put $2
+
+  elif [ $1 = "blocked" ] && [ "$#" -ge 2 ]
+  then
+    echo "'status_id':4" | $0 put $2
+
+  elif [ $1 = "doing" ] && [ "$#" -ge 2 ]
+  then
+    echo "'status_id':2" | $0 put $2
+
+
+  elif [ $1 = "fixed_version" ] && [ "$#" -ge 3 ]
+  then
+    echo "'fixed_version_id':'$3'" | $0 put $2
+
+  elif [ $1 = "parent" ] && [ "$#" -ge 3 ]
+  then
+    echo "'parent_issue_id':'$3'" | $0 put $2
+
+  elif [ $1 = "subject" ] && [ "$#" -ge 3 ]
+  then
+    echo "'subject':'$3'" | $0 put $2
+
+  elif [ $1 = "notes" ] && [ "$#" -ge 3 ]
+  then
+    echo "'notes':'$3'" | $0 put $2
+
+  elif [ $1 = "description" ] && [ "$#" -ge 3 ]
+  then
+    echo "'description':'$3'" | $0 put $2
+
+
+  elif [ $1 = "assign_to" ] && [ "$#" -ge 2 ]
+  then
+    if [ "$#" -ge 3 ]; then
+      USER_ID=$3
+    else
+      USER_ID=$( $0 current_user_id )
+    fi
+    echo "'assigned_to_id':${USER_ID}" | $0 put $2
+
+
+  elif [ $1 = "estimated" ] && [ "$#" -ge 3 ]
+  then
+    echo "'estimated_hours':$3" | $0 put $2
+
+  elif [ $1 = "remaining" ] && [ "$#" -ge 3 ]
+  then
+    echo "'remaining_hours':$3" | $0 put $2
+
+  elif [ $1 = "spent" ] && [ "$#" -ge 3 ]
+  then
+    SPENT_ON=''
+    if [ "$#" -ge 4 ]; then
+      SPENT_ON=",'spent_on':'$4'"
+    fi
+    echo "'hours':'$3'${SPENT_ON}" |\
+    sed -e "s/$/,'activity_id':9/g" |\
+    sed -e "s/$/,'issue_id':$2/g" |\
+    sed -e "s/^/{'time_entry':{/g" -e "s/$/}}/g" -e "s/'/\"/g" |\
+    curl -X POST -H "Content-type:application/json" -s -3 -d @- "https://$SERVER/time_entries.json?key=$KEY" 
+    echo
+
+  elif [ $1 = "create_story" ] && [ "$#" -ge 2 ]
+  then
+    echo "'subject':'$2'" |\
+    sed -e "s/$/,'project_id':$PROJECT_ID/g" |\
+    sed -e "s/$/,'tracker_id':2/g" |\
+    sed -e "s/^/{'issue':{/g" -e "s/$/}}/g" -e "s/'/\"/g" |\
+    curl -X POST -H "Content-type:application/json" -s -3 -d @- "https://$SERVER/issues.json?key=$KEY"
+    echo
+
+  elif [ $1 = "create_task" ] && [ "$#" -ge 2 ]
+  then
+    echo "'subject':'$2'" |\
+    sed -e "s/$/,'project_id':$PROJECT_ID/g" |\
+    sed -e "s/$/,'tracker_id':4/g" |\
+    sed -e "s/^/{'issue':{/g" -e "s/$/}}/g" -e "s/'/\"/g" |\
+    curl -X POST -H "Content-type:application/json" -s -3 -d @- "https://$SERVER/issues.json?key=$KEY"
+    echo
+
+  elif [ $1 = "add_task" ] && [ "$#" -ge 3 ]
+  then
+    echo "'subject':'$3'" |\
+    sed -e "s/$/,'project_id':$PROJECT_ID/g" |\
+    sed -e "s/$/,'parent_issue_id':$2/g" |\
+    sed -e "s/$/,'tracker_id':4/g" |\
+    sed -e "s/^/{'issue':{/g" -e "s/$/}}/g" -e "s/'/\"/g" |\
+    curl -X POST -H "Content-type:application/json" -s -3 -d @- "https://$SERVER/issues.json?key=$KEY"
+    echo
+
+  elif [ $1 = "delete" ] && [ "$#" -ge 2 ]
+  then
+    curl -X DELETE -s -3 "https://$SERVER/issues/$2.json?key=$KEY"
+
+#  elif [ $1 = "log_time" ] && [ "$#" -ge 2 ]
+#  then
+#    sed -e "s/$/,'activity_id':9/g" |\
+#    sed -e "s/$/,'issue_id':$2/g" |\
+#    sed -e "s/^/{'time_entry':{/g" -e "s/$/}}/g" -e "s/'/\"/g" |\
+#    curl -X POST -H "Content-type:application/json" -s -3 -d @- "https://$SERVER/time_entries.json?key=$KEY" 
+#    echo
+
+  elif [ $1 = "user_times" ]
+  then
+    if [ "$#" -ge 2 ]; then
+      USER_ID=$2
+    else
+      USER_ID=$( $0 current_user_id )
+    fi
+
+    USER_DETAILS=$(curl -s -3 "https://$SERVER/users/${USER_ID}.json?key=$KEY" | jq -r '. | "\(.user.firstname) \(.user.lastname)"')
+    echo "${USER_DETAILS} : spent hours"
+
+    curl -s -3 "https://$SERVER/projects/$PROJECT_ID/time_entries.json?limit=${ISSUE_LIMIT}&key=$KEY&user_id=${USER_ID}" |\
+    jq '.time_entries' |\
+    jq '. | sort_by(.spent_on)' |\
+    jq '. | group_by(.spent_on)' |\
+    jq '.[-7:]' |\
+    jq -r -c '.[] | "\(.[0].spent_on)", (.[] | "    \(.issue.id) : \(.hours)    \(.comments//"")"), "           \([.[] | .hours] | add)"' 
+    #jq -r -c '.[] | "\(.[0].spent_on)", (.[] | "    \(.issue.id) : \(.hours)    \(.comments//"")"), "    -----------\n           \([.[] | .hours] | add)"' 
+
+  elif [ $1 = "times" ]
+  then
+    #curl -s -3 "https://$SERVER/projects/$PROJECT_ID/time_entries.json?limit=${ISSUE_LIMIT}&key=$KEY&issue_id=2392" 
+    #curl -s -3 "https://$SERVER/projects/$PROJECT_ID/time_entries.json?limit=${ISSUE_LIMIT}&key=$KEY&updated_on=2014-04-01" 
+    #curl -s -3 "https://$SERVER/projects/$PROJECT_ID/time_entries.json?limit=${ISSUE_LIMIT}&key=$KEY&activity_id=9" 
+    #curl -s -3 "https://$SERVER/projects/$PROJECT_ID/time_entries.json?limit=${ISSUE_LIMIT}&key=$KEY&user_id=79" 
+    #curl -s -3 "https://$SERVER/projects/$PROJECT_ID/time_entries.json?limit=${ISSUE_LIMIT}&key=$KEY&spent_on=2014-04-01" 
+    #curl -s -3 "https://$SERVER/projects/$PROJECT_ID/time_entries.json?limit=${ISSUE_LIMIT}&key=$KEY&spent_on=2014-03-31"
+    curl -s -3 "https://$SERVER/projects/$PROJECT_ID/time_entries.json?limit=${ISSUE_LIMIT}&key=$KEY"  |\
+    jq -c '.time_entries[] '
+    #jq -c '.time_entries[] | { comments: .comments, hours: .hours, spent_on: .spent_on, issue_id: .issue.id, id: .id }'
+
+  elif [ $1 = "test" ] ##
+  then
+    #curl -s -3 "https://$SERVER/issues/$2/relations.json?&key=$KEY" | jq '.'
+    #curl -s -3 "https://$SERVER/users/140.json?key=$KEY"
+    echo
+
+  elif [ $1 = "help" ]
+  then
+    echo "Possible command line arguments:"
+    cat $0 | grep "^  \(if\|elif\)" |\
+    grep -v "\#\#" |\
+    sed -e 's/^  if //g' -e 's/^  elif //g' -e 's/^/   /g'
+
+  else
+    echo "Unknown command: $1"
+    $0 help
+
+  fi
+
+else
+  $0 help
+fi
+
+#jq '[.issues[] | select(has("fixed_version") | not)]'
+#jq -r '(.[] | "\(.id) \(.subject)"), "----------","number of user stories: \((length))"'
+#&status_id=3
+#&status_id=!3
+#&status_id=*
+#jq '[.[] | select (.status_id == 2)]' |\
+#jq '[.[] | select (.status_id != 2)]' |\
+
