@@ -193,7 +193,7 @@ if [ "$#" -ge 1 ]; then
        ID=${IDS_ARRAY[$I]}
        #echo ".....: ${ID}"
        $0 ${PARSED_OPTIONS} story ${ID}
-       echo
+       #echo
     done
 
   elif [ $1 = "current" ]
