@@ -290,7 +290,7 @@ if [ "$#" -ge 1 ]; then
   then
     echo "'subject':'$3'" | $0 put $2
 
-  elif [ $1 = "notes" ] && [ "$#" -ge 3 ]
+  elif [ $1 = "note" ] && [ "$#" -ge 3 ]
   then
     echo "'notes':'$3'" | $0 put $2
 
