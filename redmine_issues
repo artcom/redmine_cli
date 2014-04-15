@@ -385,7 +385,7 @@ if [ "$#" -ge 1 ]; then
     jq '.time_entries' |\
     jq '. | sort_by(.spent_on)' |\
     jq '. | group_by(.spent_on)' |\
-    jq '.[-7:]' |\
+    jq '.[-3:]' |\
     jq -r -c '.[] | "\(.[0].spent_on)", (.[] | "    \(.issue.id) : \(.hours)    \(.comments//"")"), "           \([.[] | .hours] | add)"' 
     #jq -r -c '.[] | "\(.[0].spent_on)", (.[] | "    \(.issue.id) : \(.hours)    \(.comments//"")"), "    -----------\n           \([.[] | .hours] | add)"' 
 
