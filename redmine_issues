@@ -7,9 +7,12 @@ elif [ -f "~/.redmine" ]; then
 fi
 
 PARSED_OPTIONS=""
-while getopts "des:" options; do
+while getopts "des:t:" options; do
   PARSED_OPTIONS="${PARSED_OPTIONS} -${options}${OPTARG}"
   case $options in
+    t )
+        TIME_TO_SHOW=$OPTARG
+        ;;
     d )
         SHOW_DONE=1
         ;;
@@ -381,11 +384,15 @@ if [ "$#" -ge 1 ]; then
     USER_DETAILS=$(curl -s -3 "https://$SERVER/users/${USER_ID}.json?key=$KEY" | jq -r '. | "\(.user.firstname) \(.user.lastname)"')
     echo "${USER_DETAILS} : spent hours"
 
+    DAYS_TO_SHOW=".[-3:]"
+    if [ -n "${TIME_TO_SHOW}" ]; then
+      DAYS_TO_SHOW=".[-${TIME_TO_SHOW}:]"
+    fi
     curl -s -3 "https://$SERVER/projects/$PROJECT_ID/time_entries.json?limit=${ISSUE_LIMIT}&key=$KEY&user_id=${USER_ID}" |\
     jq '.time_entries' |\
     jq '. | sort_by(.spent_on)' |\
     jq '. | group_by(.spent_on)' |\
-    jq '.[-3:]' |\
+    jq "$DAYS_TO_SHOW" |\
     jq -r -c '.[] | "\(.[0].spent_on)", (.[] | "    \(.issue.id) : \(.hours)    \(.comments//"")"), "           \([.[] | .hours] | add)"' 
     #jq -r -c '.[] | "\(.[0].spent_on)", (.[] | "    \(.issue.id) : \(.hours)    \(.comments//"")"), "    -----------\n           \([.[] | .hours] | add)"' 
 
