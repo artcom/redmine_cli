@@ -246,7 +246,9 @@ if [ "$#" -ge 1 ]; then
     # TODO: in the ugly case create a valid json object
     tput smul
     tput setaf 5
-    echo -n "${FEATURE}" | $0 feature_line | tr -d '\r\n'
+    echo -n "${FEATURE}" | $0 feature_line |\
+    sed -e "s/^\(.\{$(tput cols)\}\).*$/\1/g" |\
+    tr -d '\r\n'
     tput rmul
     tput sgr0
     echo
@@ -254,7 +256,9 @@ if [ "$#" -ge 1 ]; then
     echo "${JSON_TASKS}" |\
     jq '. | sort_by(.status_id) | reverse' |\
     if [ "${SHOW_DONE}" = 1 ]; then cat; else jq '[ .[] | select(.status_id != 5 and .status_id != 6) ]'; fi |\
-    $0 -s '    ' ${PARSED_OPTIONS} task_line | $0 story_colorize
+    $0 -s '    ' ${PARSED_OPTIONS} task_line |\
+    sed -e "s/^\(.\{$(tput cols)\}\).*$/\1/g" |\
+    $0 story_colorize
 
 #echo '[{"a":1},{"a":2},{"a":3}]' | if [ $AA = 1 ];then jq -c '[.[]| select(.a != 1)]'; else cat ;fi | sed 's/a/A/g'
 #if [ "${SHOW_DONE}" = 1 ]; then jq '[ .[] | select(.status_id != 5 and .status_id != 6) ]'; else cat; fi |\
