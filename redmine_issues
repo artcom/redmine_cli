@@ -339,8 +339,8 @@ if [ "$#" -ge 1 ]; then
     sed -e "s/$/,'project_id':$PROJECT_ID/g" |\
     sed -e "s/$/,'tracker_id':2/g" |\
     sed -e "s/^/{'issue':{/g" -e "s/$/}}/g" -e "s/'/\"/g" |\
-    curl -X POST -H "Content-type:application/json" -s -3 -d @- "https://$SERVER/issues.json?key=$KEY"
-    echo
+    curl -X POST -H "Content-type:application/json" -s -3 -d @- "https://$SERVER/issues.json?key=$KEY" |\
+    jq '.issue.id'
 
   elif [ $1 = "create_task" ] && [ "$#" -ge 2 ]
   then
@@ -348,8 +348,8 @@ if [ "$#" -ge 1 ]; then
     sed -e "s/$/,'project_id':$PROJECT_ID/g" |\
     sed -e "s/$/,'tracker_id':4/g" |\
     sed -e "s/^/{'issue':{/g" -e "s/$/}}/g" -e "s/'/\"/g" |\
-    curl -X POST -H "Content-type:application/json" -s -3 -d @- "https://$SERVER/issues.json?key=$KEY"
-    echo
+    curl -X POST -H "Content-type:application/json" -s -3 -d @- "https://$SERVER/issues.json?key=$KEY" |\
+    jq '.issue.id'
 
   elif [ $1 = "add_task" ] && [ "$#" -ge 3 ]
   then
@@ -358,8 +358,8 @@ if [ "$#" -ge 1 ]; then
     sed -e "s/$/,'parent_issue_id':$2/g" |\
     sed -e "s/$/,'tracker_id':4/g" |\
     sed -e "s/^/{'issue':{/g" -e "s/$/}}/g" -e "s/'/\"/g" |\
-    curl -X POST -H "Content-type:application/json" -s -3 -d @- "https://$SERVER/issues.json?key=$KEY"
-    echo
+    curl -X POST -H "Content-type:application/json" -s -3 -d @- "https://$SERVER/issues.json?key=$KEY" |\
+    jq '.issue.id'
 
   elif [ $1 = "delete" ] && [ "$#" -ge 2 ]
   then
