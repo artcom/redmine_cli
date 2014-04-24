@@ -133,9 +133,10 @@ if [ "$#" -ge 1 ]; then
       # TODO: when the description contains new lines ('\r\n')
       #       the result is strange
       jq -r -c "(if type == \"array\" then .[] else . end |\
-\"${SPACES}\(.id): [\(.spent_hours//\"!\")-\(.remaining_hours//\"!\")-\(.estimated_hours//\"!\")] \(.status_name) [\(.assigned_to_name)] : \(.subject) - \(.parent_id//\"\")\
-\(if (.description != null) and (.description != \"\") then (\"\n${SPACES}    \(.description)\") else \"\" end)\
-\(if (.notes | length) > 0 then ([.notes[] |\"\n${SPACES}    note: \(.notes)\"]| add ) else \"\" end)\
+\"${SPACES}\(.id): [\(.spent_hours//\"!\")-\(.remaining_hours//\"!\")-\(.estimated_hours//\"!\")] \(.status_name) [\(.assigned_to_name)] : \(.subject) - \(.parent_id//\"\") \
+\(.fixed_version_name) \
+\(if (.description != null) and (.description != \"\") then (\"\n${SPACES}    \(.description)\") else \"\" end) \
+\(if (.notes | length) > 0 then ([.notes[] |\"\n${SPACES}    note: \(.notes)\"]| add ) else \"\" end) \
 \"\
       )"
 
