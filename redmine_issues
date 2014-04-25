@@ -401,6 +401,8 @@ if [ "$#" -ge 1 ]; then
     jq -r -c '.[] | "\(.[0].spent_on)", (.[] | "    \(.issue.id) : \(.hours)    \(.comments//"")"), "           \([.[] | .hours] | add)"' 
     #jq -r -c '.[] | "\(.[0].spent_on)", (.[] | "    \(.issue.id) : \(.hours)    \(.comments//"")"), "    -----------\n           \([.[] | .hours] | add)"' 
 
+    echo "$( date +%F) : today"
+
   elif [ $1 = "times" ]
   then
     #curl -s -3 "https://$SERVER/projects/$PROJECT_ID/time_entries.json?limit=${ISSUE_LIMIT}&key=$KEY&issue_id=2392" 
