@@ -35,19 +35,19 @@ function assert_statements() {
   fi
 }
 
-if [ -f "~/.ssh/.redmine" ]; then
+if [ -f ~/.ssh/.redmine ]; then
   assert_permissions ~/.ssh/.redmine
   assert_statements ~/.ssh/.redmine
   source ~/.ssh/.redmine
 fi
 
-if [ -f "~/.redmine" ]; then
+if [ -f ~/.redmine ]; then
   assert_permissions ~/.redmine
   assert_statements ~/.redmine
   source ~/.redmine
 fi
 
-if [ -f ".redmine" ]; then
+if [ -f .redmine ]; then
   assert_permissions .redmine
   assert_statements .redmine
   source .redmine
