@@ -1,5 +1,6 @@
 #!/bin/bash
 function assert_permissions() {
+   
   if [ -n "$( find $1 -perm +0077 )" ]
   then 
     echo "configuration file: '$1' has insecure permission settings" >&2
@@ -33,6 +34,12 @@ function assert_statements() {
     exit 1
   fi
 }
+
+if [ -f "~/.ssh/.redmine" ]; then
+  assert_permissions ~/.ssh/.redmine
+  assert_statements ~/.ssh/.redmine
+  source ~/.ssh/.redmine
+fi
 
 if [ -f "~/.redmine" ]; then
   assert_permissions ~/.redmine
