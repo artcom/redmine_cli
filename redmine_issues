@@ -7,14 +7,49 @@ function assert_permissions() {
     exit 1
   fi
 }
+function assert_statements() {
+  ORIGINAL_CONTENT=$(cat -n $1)
+  echo "ORIGINAL_CONTENT: ${ORIGINAL_CONTENT}" >&2
+  echo "-----------------------------------------------------"
+  FILTERED_CONTENT=$(echo "$ORIGINAL_CONTENT" | grep -v "^ *[0-9]*\t#.*$")
+  #FILTERED_CONTENT=$(echo "$ORIGINAL_CONTENT" | grep -v "#")
+  echo "FILTERED_CONTENT: ${FILTERED_CONTENT}" >&2
+  echo "-----------------------------------------------------"
+  FILTERED_CONTENT=$(echo "$FILTERED_CONTENT" | grep -v "^ *[0-9]*\t$")
+  echo "FILTERED_CONTENT: ${FILTERED_CONTENT}" >&2
+  echo "-----------------------------------------------------"
+  #FILTERED_CONTENT=$(echo "$FILTERED_CONTENT" | egrep "^[^ ]*=[^;&]*$")
+  #echo "FILTERED_CONTENT: ${FILTERED_CONTENT}" >&2
+
+  NOT_ALLOWED_STATEMENTS=""
+  NOT_ALLOWED_STATEMENTS="${NOT_ALLOWED_STATEMENTS}$( echo "$FILTERED_CONTENT" |\
+    grep -v "^ *[0-9]* *[^ ]*=\('\|\"\).*\('\|\"\)$" )"
+  if [ -n "$NOT_ALLOWED_STATEMENTS" ]; then
+    NOT_ALLOWED_STATEMENTS=$NOT_ALLOWED_STATEMENTS$'\n'
+  fi
+  NOT_ALLOWED_STATEMENTS="${NOT_ALLOWED_STATEMENTS}$( echo "$FILTERED_CONTENT" |\
+    grep "\$\((\|{\)" )"
+  if [ -n "$NOT_ALLOWED_STATEMENTS" ]; then
+    NOT_ALLOWED_STATEMENTS=$NOT_ALLOWED_STATEMENTS$'\n'
+  fi
+
+  if [ -n "$NOT_ALLOWED_STATEMENTS" ]; then
+    echo "configuration file: '$1' contains not allowed statements!" >&2
+    echo "statements must be of format: VARIALBE_NAME='VALUE'." >&2
+    echo "${NOT_ALLOWED_STATEMENTS}" >&2
+    exit 1
+  fi
+}
 
 if [ -f "~/.redmine" ]; then
   assert_permissions ~/.redmine
+  assert_statements ~/.redmine
   source ~/.redmine
 fi
 
 if [ -f ".redmine" ]; then
   assert_permissions .redmine
+  assert_statements .redmine
   source .redmine
 fi
 
