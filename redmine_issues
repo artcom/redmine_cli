@@ -7,7 +7,7 @@ elif [ -f "~/.redmine" ]; then
 fi
 
 PARSED_OPTIONS=""
-while getopts "des:t:" options; do
+while getopts "hdes:t:" options; do
   PARSED_OPTIONS="${PARSED_OPTIONS} -${options}${OPTARG}"
   case $options in
     t )
@@ -21,6 +21,10 @@ while getopts "des:t:" options; do
         ;;
     e )
         EXTENDED=1
+        ;;
+    h )
+        $0 help
+        exit 0
         ;;
    \? ) 
         exit 1
@@ -423,6 +427,7 @@ if [ "$#" -ge 1 ]; then
 
   elif [ $1 = "help" ]
   then
+    echo "usage: <options> <filters> <command> <arguments>"
     echo "Possible command line arguments:"
     cat $0 | grep "^  \(if\|elif\)" |\
     grep -v "\#\#" |\
@@ -431,9 +436,7 @@ if [ "$#" -ge 1 ]; then
   else
     echo "Unknown command: $1"
     $0 help
-
   fi
-
 else
   $0 help
 fi
