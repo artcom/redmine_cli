@@ -90,10 +90,10 @@ while getopts "hdes:t:" options; do
 done
 shift $(( OPTIND - 1 ));
 
-if [ "$#" -ge 1 ]; then
-  : ${ISSUE_LIMIT:="400"}
-  : ${USER_ID:="me"}
+: ${ISSUE_LIMIT:="400"}
+: ${USER_ID:="me"}
 
+if [ "$#" -ge 1 ]; then
   if [ $1 = "sprints" ]
   then
     curl -s -3 "https://$SERVER/projects/$PROJECT_ID/versions.json?key=$KEY" |\
