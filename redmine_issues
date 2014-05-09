@@ -9,17 +9,10 @@ function assert_permissions() {
 }
 function assert_statements() {
   ORIGINAL_CONTENT=$(cat -n $1)
-  echo "ORIGINAL_CONTENT: ${ORIGINAL_CONTENT}" >&2
-  echo "-----------------------------------------------------"
   FILTERED_CONTENT=$(echo "$ORIGINAL_CONTENT" | grep -v "^ *[0-9]*\t#.*$")
   #FILTERED_CONTENT=$(echo "$ORIGINAL_CONTENT" | grep -v "#")
-  echo "FILTERED_CONTENT: ${FILTERED_CONTENT}" >&2
-  echo "-----------------------------------------------------"
   FILTERED_CONTENT=$(echo "$FILTERED_CONTENT" | grep -v "^ *[0-9]*\t$")
-  echo "FILTERED_CONTENT: ${FILTERED_CONTENT}" >&2
-  echo "-----------------------------------------------------"
   #FILTERED_CONTENT=$(echo "$FILTERED_CONTENT" | egrep "^[^ ]*=[^;&]*$")
-  #echo "FILTERED_CONTENT: ${FILTERED_CONTENT}" >&2
 
   NOT_ALLOWED_STATEMENTS=""
   NOT_ALLOWED_STATEMENTS="${NOT_ALLOWED_STATEMENTS}$( echo "$FILTERED_CONTENT" |\
