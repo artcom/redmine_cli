@@ -489,7 +489,9 @@ if [ "$#" -ge 1 ]; then
     COMMANDS=$( cat $0 | grep "^  \(if\|elif\) \[ \$1" |\
     grep -v "\#\#" |\
     sed -e 's/^  if //g' -e 's/^  elif //g' -e 's/^/   /g' |\
-    grep -o "\"\w*\"" | sed -e 's/^"\(.*\)"$/\1 /g' | sort | tr -d '\n' )
+    grep -o "\"\w*\"" | sed -e 's/^"\(.*\)"$/\1 /g' |\
+    sed 's/^/     /g' )
+    #sort | tr -d '\n' )
     echo "$COMMANDS"
 
   else
