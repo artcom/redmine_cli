@@ -1,9 +1,21 @@
 #!/bin/bash
+function assert_permissions() {
+  if [ -n "$( find $1 -perm +0077 )" ]
+  then 
+    echo "configuration file: '$1' has insecure permission settings" >&2
+    echo "  group and others should have no access rights" >&2
+    exit 1
+  fi
+}
+
+if [ -f "~/.redmine" ]; then
+  assert_permissions ~/.redmine
+  source ~/.redmine
+fi
 
 if [ -f ".redmine" ]; then
+  assert_permissions .redmine
   source .redmine
-elif [ -f "~/.redmine" ]; then
-  source ~/.redmine
 fi
 
 if [ -z $SERVER ] || [ -z $PROJECT_ID ] || [ -z $KEY ]; then
