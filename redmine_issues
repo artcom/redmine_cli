@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function assert_permissions() {
-  if [ -n "$(cat .redmine | egrep "^ *KEY=('|\")\w*('|\")$")" ]; then
+  if [ -n "$(cat $1 | egrep "^ *KEY=('|\")\w*('|\")$")" ]; then
     if [ -n "$( find $1 -perm +0077 )" ]
     then 
       echo "configuration file: '$1' with API KEY defnition has insecure permission settings" >&2
