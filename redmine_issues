@@ -56,6 +56,12 @@ if [ -f .redmine ]; then
   source .redmine
 fi
 
+if [ -n $CONFIG_FILE ]; then
+  assert_permissions $CONFIG_FILE
+  assert_statements $CONFIG_FILE
+  source $CONFIG_FILE
+fi
+
 if [ -z $SERVER ] || [ -z $PROJECT_ID ] || [ -z $KEY ]; then
   echo "SERVER,PROJECT_ID or KEY variable are not defined." >&2
   echo "  These variables should either be defined as environments variables," >&2
