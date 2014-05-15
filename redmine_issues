@@ -62,17 +62,13 @@ if [ -n $CONFIG_FILE ]; then
   source $CONFIG_FILE
 fi
 
-if [ -z $SERVER ] || [ -z $PROJECT_ID ] || [ -z $KEY ]; then
-  echo "SERVER,PROJECT_ID or KEY variable are not defined." >&2
-  echo "  These variables should either be defined as environments variables," >&2
-  echo "  or in a .redmine file in the current directory or the users home directory." >&2
-  exit 1
-fi
-
 PARSED_OPTIONS=""
-while getopts "hdes:t:" options; do
+while getopts "p:hdes:t:" options; do
   PARSED_OPTIONS="${PARSED_OPTIONS} -${options}${OPTARG}"
   case $options in
+    p )
+        $PROJECT_ID=$OPTARG
+        ;;
     t )
         TIME_TO_SHOW=$OPTARG
         ;;
@@ -98,6 +94,13 @@ shift $(( OPTIND - 1 ));
 
 : ${ISSUE_LIMIT:="400"}
 : ${USER_ID:="me"}
+
+if [ -z $SERVER ] || [ -z $PROJECT_ID ] || [ -z $KEY ]; then
+  echo "SERVER,PROJECT_ID or KEY variable are not defined." >&2
+  echo "  These variables should either be defined as environments variables," >&2
+  echo "  or in a .redmine file in the current directory or the users home directory." >&2
+  exit 1
+fi
 
 if [ "$#" -ge 1 ]; then
   if [ $1 = "sprints" ]
