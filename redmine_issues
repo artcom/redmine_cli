@@ -67,7 +67,7 @@ while getopts "p:hdes:t:" options; do
   PARSED_OPTIONS="${PARSED_OPTIONS} -${options}${OPTARG}"
   case $options in
     p )
-        $PROJECT_ID=$OPTARG
+        PROJECT_ID=$OPTARG
         ;;
     t )
         TIME_TO_SHOW=$OPTARG
