@@ -22,7 +22,11 @@ while getopts "rh" OPTIONS; do
   esac
 done
 
-if [ -f ".redmine" ]; then
+if [ -f ~/.ssh/.redmine ]; then
+  source ~/.ssh/.redmine
+fi
+
+if [ -f .redmine ]; then
   source .redmine
 fi
 

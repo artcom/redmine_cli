@@ -1,8 +1,13 @@
 #!/bin/bash
 
-if [ -f ".redmine" ]; then
+if [ -f ~/.ssh/.redmine ]; then
+  source ~/.ssh/.redmine
+fi
+
+if [ -f .redmine ]; then
   source .redmine
 fi
+
 
 if [ "$#" -gt 0 ]; then
   PAGE_NAME=$1
