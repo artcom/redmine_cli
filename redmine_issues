@@ -63,7 +63,7 @@ if [ -n "$CONFIG_FILE" ]; then
 fi
 
 PARSED_OPTIONS=""
-while getopts "p:hdes:t:" options; do
+while getopts "p:hdes:t:j" options; do
   PARSED_OPTIONS="${PARSED_OPTIONS} -${options}${OPTARG}"
   case $options in
     p )
@@ -77,6 +77,9 @@ while getopts "p:hdes:t:" options; do
         ;;
     s )
         SPACES=$OPTARG
+        ;;
+    j )
+        JSON_OUTPUT=1
         ;;
     e )
         EXTENDED=1
@@ -232,6 +235,21 @@ if [ "$#" -ge 1 ]; then
     jq '.issues' |\
     $0 issue_format
 
+  elif [ $1 = "stories_user" ] ##
+  then
+    SPRINT_ID=$($0 current_sprint_id)
+
+    if [ "$#" -ge 2 ]; then
+      USER_ID=$2
+    else
+      USER_ID=$( $0 current_user_id )
+    fi
+    USER_DETAILS=$(curl -s -3 "https://$SERVER/users/${USER_ID}.json?key=$KEY" | jq -r '. | "\(.user.firstname) \(.user.lastname)"')
+
+    curl -s -3 "https://$SERVER/issues.json?key=$KEY&limit=$ISSUE_LIMIT&project_id=$PROJECT_ID&tracker_id=2&fixed_version_id=$SPRINT_ID&assigned_to_id=$USER_ID" |\
+    jq '.issues' |\
+    $0 issue_format
+
   elif [ $1 = "backlog_stories" ] ##
   then
     SPRINT_ID=$($0 current_sprint_id)
@@ -260,11 +278,28 @@ if [ "$#" -ge 1 ]; then
 
     #echo "${USER_DETAILS}"
 
-    curl -s -3 "https://$SERVER/issues.json?key=$KEY&limit=$ISSUE_LIMIT&project_id=$PROJECT_ID&tracker_id=4&status_id=open&assigned_to_id=$USER_ID" |\
-    jq '.issues' |\
-    $0 issue_format |\
-    jq '. | sort_by(.status_id) | reverse' |\
-    $0 ${PARSED_OPTIONS} task_line | $0 task_colorize
+    if [ "${JSON_OUTPUT}" == "1" ]; then
+      TASK_IDS=$(curl -s -3 "https://$SERVER/issues.json?key=$KEY&limit=$ISSUE_LIMIT&project_id=$PROJECT_ID&tracker_id=4&status_id=open&assigned_to_id=$USER_ID&fixed_version_id=$SPRINT_ID" |\
+      jq '.issues' | $0 ids)
+      IDS_ARRAY=( $TASK_IDS )
+      ARRAY_LENGTH=${#IDS_ARRAY[@]}
+      echo "["
+      for (( I=0; I<=$(( ${ARRAY_LENGTH} -1 )); I++ ))
+      do
+       ID=${IDS_ARRAY[$I]}
+       $0 issue $ID | jq '.[]'
+       if [ $I -lt $(( ${ARRAY_LENGTH} -1 )) ]; then
+        echo ","
+       fi
+      done
+      echo "]"
+    else
+      curl -s -3 "https://$SERVER/issues.json?key=$KEY&limit=$ISSUE_LIMIT&project_id=$PROJECT_ID&tracker_id=4&status_id=open&assigned_to_id=$USER_ID&fixed_version_id=$SPRINT_ID" |\
+      jq '.issues' |\
+      $0 issue_format |\
+      jq '. | sort_by(.status_id) | reverse' |\
+      $0 ${PARSED_OPTIONS} task_line | $0 task_colorize
+    fi
 
   elif [ $1 = "children" ] ##
   then
@@ -282,6 +317,12 @@ if [ "$#" -ge 1 ]; then
   elif [ $1 = "current" ]
   then
     $0 current_stories |\
+    jq '. | sort_by(.subject) ' |\
+    $0 ids | $0 ${PARSED_OPTIONS} children
+
+  elif [ $1 = "current_user" ]
+  then
+    $0 stories_user |\
     jq '. | sort_by(.subject) ' |\
     $0 ids | $0 ${PARSED_OPTIONS} children
 
@@ -393,6 +434,9 @@ if [ "$#" -ge 1 ]; then
     fi
     echo "'assigned_to_id':${USER_ID}" | $0 put $2
 
+  elif [ $1 = "total" ] && [ "$#" -ge 3 ]
+  then
+    echo "'estimated_hours':$3,'remaining_hours':$3" | $0 put $2
 
   elif [ $1 = "estimated" ] && [ "$#" -ge 3 ]
   then
