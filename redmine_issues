@@ -192,9 +192,17 @@ if [ "$#" -ge 1 ]; then
 
   elif [ $1 = "feature_line" ] ##
   then
-    jq -r "(if type == \"array\" then .[] else . end | \
-\"\(.id): [\(.story_points//\"!\")-\(.estimated_hours//\"!\")] \(.fixed_version_name//\"\"): '\(.subject)'\"\
+    if [ "${EXTENDED}" == "1" ]; then
+    jq -r -c "(if type == \"array\" then .[] else . end | \
+\"\(.id): [\(.story_points//\"!\")-\(.estimated_hours//\"!\")] \(.fixed_version_name//\"\") \(if (.assigned_to_name != null) then .assigned_to_name else \"\"end): '\(.subject)'\
+\(if (.description != null) and (.description != \"\") then (\"\n${SPACES}    \(.description)\") else \"\" end) \
+\"\
     )"
+    else
+    jq -r "(if type == \"array\" then .[] else . end | \
+\"\(.id): [\(.story_points//\"!\")-\(.estimated_hours//\"!\")] \(.fixed_version_name//\"\") \(if (.assigned_to_name != null) then .assigned_to_name else \"\"end): '\(.subject)'\"\
+    )"
+    fi
 
   elif [ $1 = "task_line" ] ##
   then
@@ -317,9 +325,8 @@ if [ "$#" -ge 1 ]; then
     # TODO: in the ugly case create a valid json object
     tput smul
     tput setaf 5
-    echo -n "${FEATURE}" | $0 feature_line |\
-    sed -e "s/^\(.\{$(tput cols)\}\).*$/\1/g" |\
-    tr -d '\r\n'
+    echo -n "${FEATURE}" | $0 ${PARSED_OPTIONS} feature_line |\
+    sed -e "s/^\(.\{$(tput cols)\}\).*$/\1/g" | tr -d '\r\n'
     tput rmul
     tput sgr0
     echo
