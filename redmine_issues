@@ -554,6 +554,18 @@ if [ "$#" -ge 1 ]; then
     #curl -s -3 "https://$SERVER/issues/$2/relations.json?&key=$KEY" | jq '.'
     #curl -s -3 "https://$SERVER/users/140.json?key=$KEY"
     echo
+    SPRINT_ID=$($0 current_sprint_id)
+    if [ "$#" -ge 2 ]; then
+      USER_ID=$2
+    else
+      USER_ID=$( $0 current_user_id )
+    fi
+
+    curl -s -3 "https://$SERVER/issues.json?key=$KEY&limit=$ISSUE_LIMIT&project_id=$PROJECT_ID&tracker_id=2&status_id=open&fixed_version_id=!$SPRINT_ID&assigned_to_id=$USER_ID" |\
+    jq '.issues' 
+    #|\
+    #$0 issue_format
+
 
   elif [ $1 = "help" ]
   then
